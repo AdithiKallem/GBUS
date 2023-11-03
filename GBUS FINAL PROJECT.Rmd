@@ -1,0 +1,557 @@
+---
+title: "Gbus Final pROJECT"
+output:
+  word_document: default
+  html_document: default
+  pdf_document: default
+date: "2023-10-26"
+---
+
+**LOADING THE DATASET:**
+
+```{r}
+library(skimr)
+library(purrr)
+library(dplyr)
+```
+
+```{r}
+data <- readRDS("/Users/adithi/Downloads/loan_data.rds")
+
+```
+
+```{r}
+data <- as.data.frame(data)
+
+```
+
+```{r}
+write.csv(data, file = "output_file.csv", row.names = FALSE)
+
+```
+
+```{r}
+data <- read.csv("output_file.csv")
+head(data)
+```
+```{r}
+dim(data)
+```
+
+```{r}
+str(data)
+```
+```{r}
+glimpse(data)
+```
+
+```{r}
+skim(data)
+```
+
+```{r}
+summary(data)
+```
+**DATA ANALYSIS**
+
+**Question 1: What is the distribution of loan defaults (yes/no) in the dataset?**
+
+**Answer:** 
+
+In the dataset, there is a higher frequency of loans not defaulting ("No"), with 2,580 instances (approximately 62.77%), compared to loans that did default ("Yes"), which have 1,530 instances (approximately 37.23%).
+
+```{r}
+
+library(ggplot2)
+library(plotly)
+library(tidyr)
+library(dplyr)
+```
+
+
+```{r}
+# Summary Data Frame
+loan_default_counts <- table(data$loan_default)
+loan_default_summary <- data.frame(
+  loan_Default = names(loan_default_counts),
+  Frequency = as.integer(loan_default_counts),
+  Ratio = as.double(loan_default_counts / sum(loan_default_counts))
+)
+
+colnames(loan_default_summary) <- c("loan_Default", "Frequency", "Ratio")
+
+# Print the summary table
+print(loan_default_summary)
+
+```
+
+Created a Scatter plot to represent the frequency of loan_default in the dataset.
+
+```{r}
+
+default_bar_plot <- ggplot(loan_default_summary, aes(x = loan_Default, y = Frequency, fill = loan_Default)) +
+  geom_point(size = 4) +  # Adjust the size value as needed
+  labs(title = "Distribution of Loan Defaults",
+       x = "loan Default",
+       y = "Count") +
+  theme_minimal()
+
+default_bar_plotly <-ggplotly(default_bar_plot)
+default_bar_plotly
+```
+
+
+
+
+**Question 2: How does loan default vary by loan purpose?**
+
+**Answer: **
+
+Loan default varies by loan purpose as indicated by the provided output:
+
+1. Credit Card: Loans for the "credit_card" purpose have a ratio of approximately 1.15, suggesting a higher likelihood of default.
+2. Debt Consolidation: Loans for "debt_consolidation" have a ratio of approximately 0.34, indicating a lower likelihood of default.
+3, Home Improvement: "Home_improvement" loans exhibit a ratio of approximately 0.39, implying a lower likelihood of default.
+4. Medical: Loans with the "medical" purpose have a ratio of approximately 1.53, indicating a higher likelihood of default.
+5. Small Business: "Small_business" loans have a ratio of approximately 0.35, suggesting a lower likelihood of default.
+
+Credit card and medical have higher risk.
+Debt consolidation and home improvement have lower risk.
+Small business is moderate.
+
+```{r}
+loan_purpose_summary <- data %>%
+  group_by(loan_purpose, loan_default) %>%
+  summarize(Frequency = n()) %>%
+  ungroup() %>%
+  pivot_wider(names_from = loan_default, values_from = Frequency, values_fill = 0) %>%
+  mutate(Ratio = `yes` / `no`)
+print(loan_purpose_summary)
+```
+
+Created a bargraph to represent Loan Default by Loan Purpose
+
+
+```{r}
+loan_purpose_plot <- ggplot(loan_purpose_summary, aes(x = loan_purpose, y = Ratio)) +
+  geom_bar(stat = "identity", position = "dodge", fill = "maroon") +
+  labs(title = "Loan Purpose vs. Default Ratio",
+       x = "Loan Purpose",
+       y = "Default Ratio") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))  # Rotate x-axis labels for better readability
+
+# Print the bar graph
+print(loan_purpose_plot)
+
+```
+
+Also can be represented in a scatter plot
+```{r}
+# Create a scatter plot for the loan purpose summary
+loan_purpose_plot <- ggplot(loan_purpose_summary, aes(x = loan_purpose, y = Ratio)) +
+  geom_point(size = 4) +
+  labs(title = "Loan Purpose vs. Default Ratio",
+       x = "Loan Purpose",
+       y = "Default Ratio") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))  # Rotate x-axis labels for better readability
+
+# Print the scatter plot
+print(loan_purpose_plot)
+```
+
+
+
+**Question 3: How does loan purpose and loan amount relate to loan defaults?**
+
+**Answer:**
+
+The relationship between loan purpose and loan amount in relation to loan defaults is evident. Small business loans exhibit the highest ratio, suggesting a greater likelihood of default, while medical loans have the lowest ratio, indicating a lower likelihood of default. Other loan purposes fall in between these extremes.
+
+
+```{r}
+# Summary Data Frame
+loan_purpose_amount_summary <- data %>%
+  group_by(loan_purpose, loan_default) %>%
+  summarise(mean_loan_amount = mean(loan_amount))
+
+loan_purpose_amount_summary
+
+```
+
+```{r}
+# Calculate the ratios
+ratio_amount_summary <- loan_purpose_amount_summary %>%
+  spread(loan_default, mean_loan_amount) %>%  # Spread "yes" and "no" mean loan amounts into separate columns
+  mutate(ratio_yes_no_loan_amount = yes / no) %>%  # Calculate the ratio
+  select(-yes, -no)  # Remove the individual "yes" and "no" columns
+
+# Print the resulting data frame
+print(ratio_amount_summary)
+
+
+```
+Created a bar graph to represent relation between Loan Purpose, Loan Amount, and Loan Defaults.
+
+```{r}
+
+loan_purpose_amount_summary <- data %>%
+  group_by(loan_purpose, loan_default) %>%
+  summarise(mean_loan_amount = mean(loan_amount)) %>%
+  plot_ly(x = ~loan_purpose, y = ~mean_loan_amount, color = ~factor(loan_default), type = "bar") %>%
+  layout(title = "Loan Purpose, Loan Amount, and Loan Defaults",
+         xaxis = list(title = "Loan Purpose"),
+         yaxis = list(title = "Mean Loan Amount"),
+         barmode = "group")
+
+loan_purpose_amount_summary
+```
+
+Represented this in Heat map.
+
+```{r}
+loan_purpose_amount_summary <- data.frame(
+  loan_purpose = c("credit_card", "credit_card", "debt_consolidation", "debt_consolidation", "home_improvement", "home_improvement", "medical", "medical", "small_business", "small_business"),
+  loan_default = c("no", "yes", "no", "yes", "no", "yes", "no", "yes", "no", "yes"),
+  mean_loan_amount = c(16173.35, 17076.44, 16224.37, 17704.38, 16329.89, 17754.59, 16635.06, 17058.27, 16116.26, 18350.90)
+)
+
+# Create a heatmap using ggplot2
+ggplot(loan_purpose_amount_summary, aes(x = loan_default, y = loan_purpose, fill = mean_loan_amount)) +
+  geom_tile() +
+  scale_fill_gradient(low = "lightblue", high = "maroon") +
+  labs(title = "Loan Purpose, Loan Amount, and Loan Defaults Heatmap",
+       x = "Loan Default",
+       y = "Loan Purpose",
+       fill = "Mean Loan Amount") +
+  theme_minimal()
+```
+
+
+**Question 4: How does the loan term (three/five years) affect loan defaults?**
+
+**Answer:**
+
+The loan term significantly affects loan defaults. "Five-year" loans have a higher likelihood of default with a ratio of approximately 1.22, while "three-year" loans exhibit a lower likelihood of default with a ratio of approximately 0.37.
+
+```{r}
+# Summary Data Frame
+loan_term_summary <- data %>% 
+  filter(term %in% c("three_year", "five_year")) %>%
+  group_by(term, loan_default) %>% 
+  summarize(count = n()) %>%
+  ungroup() %>%
+  pivot_wider(names_from = loan_default, values_from = count, values_fill = 0) %>%
+  mutate(Ratio = yes / no)
+
+# Print the summary table
+print(loan_term_summary)
+
+
+```
+Created a bar graph to represent Loan Default by Loan Term
+
+```{r}
+# Bar chart (interactive)
+loan_term_plot <- ggplot(loan_term_summary, aes(x = term, y = Ratio)) +
+  geom_bar(stat = "identity", position = "dodge", fill = "orange") +
+  labs(title = "Loan Default by Loan Term", x = "Loan Term", y = "Count")
+
+# Convert the ggplot to an interactive plotly plot
+loan_term_plot <- ggplotly(loan_term_plot)
+
+loan_term_plot
+```
+
+
+**Question 5: How does homeownership status relate to loan defaults?**
+
+**Answer:**
+
+Borrowers who own a home ("own") have a lower likelihood of default (ratio of approximately 0.59), while renters ("rent") have a higher likelihood of default (ratio of approximately 0.75). Mortgage holders ("mortgage") have an intermediate likelihood of default (ratio of approximately 0.48).
+
+
+```{r}
+homeownership_summary <- data %>% 
+  group_by(homeownership, loan_default) %>% 
+  summarize(count = n()) %>%
+  ungroup() %>%
+  pivot_wider(names_from = loan_default, values_from = count, values_fill = 0) %>%
+  mutate(Ratio = yes / no)
+
+# Print the summary table
+print(homeownership_summary)
+```
+
+Created a stacked bar graph to represent Loan Default by Homeownership Status.
+
+```{r}
+# Stacked bar chart
+homeownership_plot <- ggplot(homeownership_summary, aes(x = homeownership, y = Ratio)) +
+  geom_bar(stat = "identity", fill = "black") +
+  labs(title = "Loan Default by Homeownership Status", x = "Homeownership Status", y = "Count")
+
+# Convert the ggplot to an interactive plotly plot
+homeownership_plot <- ggplotly(homeownership_plot)
+
+homeownership_plot
+```
+
+**PREDICTIVE MODELING**
+
+```{r}
+# Load the required packages
+library(caret)
+library(dplyr)
+library(parsnip)
+library(yardstick)
+library(workflows)
+library(tidymodels)
+library(caTools)
+library(ranger)
+
+# Set a seed for reproducibility
+set.seed(123)
+
+# Load your dataset
+data <- read.csv("output_file.csv")
+
+# Split the data into training and test sets
+split_data <- initial_split(data, prop = 0.8)
+train_data <- training(split_data)
+test_data <- testing(split_data)
+
+# Specify your feature engineering pipeline with the recipes package
+data_recipe <- recipe(loan_default ~ ., data = train_data) %>%
+  step_normalize(all_numeric()) %>%
+  step_dummy(all_nominal(), -all_outcomes())
+
+# Model 1 Training - Logistic Regression
+model_1 <- logistic_reg() %>%
+  set_engine("glm")
+
+workflow_1 <- workflow() %>%
+  add_recipe(data_recipe) %>%
+  add_model(model_1)
+
+trained_workflow_1 <- fit(workflow_1, data = train_data)
+
+# Model 1 Training - Logistic Regression
+model_1 <- logistic_reg() %>%
+  set_engine("glm")
+
+workflow_1 <- workflow() %>%
+  add_recipe(data_recipe) %>%
+  add_model(model_1)
+
+trained_workflow_1 <- fit(workflow_1, data = train_data)
+
+# Predict using Model 1
+class_predict_1 <- predict(trained_workflow_1, new_data = test_data, type = 'class')
+prob_predicts_1 <- predict(trained_workflow_1, new_data = test_data, type = 'prob')
+
+roc_data_wf_logreg <- test_data %>%
+  select(loan_default) %>%
+  bind_cols(class_predict_1, prob_predicts_1)
+
+# Load the pROC package
+library(pROC)
+
+# Convert "loan_default" to a binary indicator (0 or 1)
+test_data$loan_default <- as.integer(test_data$loan_default == "yes")
+
+# Create a ROC curve object
+roc_model_1 <- roc(test_data$loan_default, roc_data_wf_logreg$.pred_yes)
+
+# Plot the ROC curve
+plot(roc_model_1)
+
+# Calculate and print the AUC
+auc_model_1 <- auc(roc_model_1)
+cat("AUC for Model 1 (Logistic Regression):", auc_model_1, "\n")
+```
+
+```{r}
+
+# Model 2 Training - Random Forest
+model_2 <- rand_forest() %>%
+  set_engine("ranger") %>%
+  set_mode("classification")
+
+workflow_2 <- workflow() %>%
+  add_recipe(data_recipe) %>%
+  add_model(model_2)
+
+trained_workflow_2 <- fit(workflow_2, data = train_data)
+
+# Predict using Model 2
+class_predict_2 <- predict(trained_workflow_2, new_data = test_data, type = 'class')
+prob_predicts_2 <- predict(trained_workflow_2, new_data = test_data, type = 'prob')
+
+roc_data_wf_randf <- test_data %>%
+  select(loan_default) %>%
+  bind_cols(class_predict_2, prob_predicts_2)
+
+# Calculate ROC curve for Model 2 (Random Forest)
+roc_model_2 <- roc(test_data$loan_default, roc_data_wf_randf$.pred_yes)
+
+# Plot the ROC curve for Model 2
+plot(roc_model_2)
+
+# Calculate and print the AUC for Model 2
+auc_model_2 <- auc(roc_model_2)
+cat("AUC for Model 2 (Random Forest):", auc_model_2, "\n")
+
+```
+```{r}
+# Load the pROC package (if not already loaded)
+library(pROC)
+
+# Create ROC curves for Model 1 and Model 2
+roc_model_1 <- roc(test_data$loan_default, roc_data_wf_logreg$.pred_yes)
+roc_model_2 <- roc(test_data$loan_default, roc_data_wf_randf$.pred_yes)
+
+# Plot the ROC curves for Model 1 and Model 2
+plot(roc_model_1, col = "blue")
+plot(roc_model_2, col = "red", add = TRUE)
+
+# Add labels and legend
+legend("bottomright", legend = c("Model 1 (Logistic Regression)", "Model 2 (Random Forest)"), col = c("blue", "red"), lty = 1)
+
+# Calculate and print the AUC for Model 1 and Model 2
+auc_model_1 <- auc(roc_model_1)
+cat("AUC for Model 1 (Logistic Regression):", auc_model_1, "\n")
+
+auc_model_2 <- auc(roc_model_2)
+cat("AUC for Model 2 (Random Forest):", auc_model_2, "\n")
+
+```
+```{r}
+# Define a list of your models and their AUC values
+models <- data.frame(
+  Model = c("Model 1 (Logistic Regression)", "Model 2 (Random Forest)"),
+  AUC = c(auc_model_1, auc_model_2)
+  # Add more models and their AUC values, if available
+)
+
+# Identify the model with the highest AUC
+best_model <- models[which.max(models$AUC), ]
+
+# Print the best model
+cat("The best model is:", best_model$Model, "with AUC:", best_model$AUC, "\n")
+
+```
+
+**EXECUTIVE SUMMARY*
+
+**1. Introduction**
+
+In this analysis, we aimed to address the pressing issue of loan defaults, a matter of paramount importance for the future success and stability of our bank. Loan defaults have significant financial implications and risk implications that impact our bottom line and reputation. The primary goal of our analysis was to gain insights into the distribution and patterns of loan defaults within our dataset, understand how they vary with loan characteristics, and provide recommendations to enhance our loan processes.
+
+Certainly, let's structure the information with subheadings:
+
+**2. Highlights and Key Findings:**
+
+- **Loan Default Distribution:** In the dataset, 62.77% of loans did not default ("No"), and 37.23% did default ("Yes"). Managing risk for the minority of defaulting loans is essential.
+
+- **Loan Purpose Impact:** Loan purpose significantly influences default rates. "Credit_card" and "medical" loans pose higher risks, while "debt_consolidation" and "home_improvement" loans are less risky. "Small_business" loans have moderate risk.
+
+- **Loan Purpose and Amount:** Small business loans have a high likelihood of default, while medical loans have the lowest risk. Evaluating the impact of purpose and amount on default risk is crucial.
+
+- **Loan Term Influence:** The loan term is a critical factor in default risk. "Five-year" loans have a higher risk of default, while "three-year" loans have a lower risk.
+
+- **Homeownership Impact:** Homeownership status is strongly related to default risk. Homeowners are less likely to default, while renters are more likely to default.
+
+**Recommendations:**
+
+- **Risk-Based Loan Pricing:** Implement tailored interest rates based on loan purpose and risk. Lower rates for low-risk purposes and higher rates for high-risk ones.
+
+- **Customized Credit Scoring:** Develop credit scoring models that account for purpose, loan amount, and homeownership status in assigning credit scores.
+
+- **Diverse Loan Term Options:** Offer multiple loan term options and adjust interest rates to reflect the associated risk.
+
+- **Risk Mitigation Strategies:** Implement additional requirements for higher-risk loans, such as "small_business," to reduce default risk.
+
+- **Targeted Marketing:** Tailor marketing strategies based on homeownership status to attract lower-risk borrowers.
+
+- **Continuous Monitoring:** Regularly update risk models and adapt lending strategies based on evolving default trends.
+
+- **Customer Education:** Educate borrowers on how loan characteristics impact default risk.
+
+- **Portfolio Diversification:** Spread risk by diversifying the loan portfolio across different purposes and types.
+
+These recommendations aim to enhance risk assessment, optimize lending practices, and reduce loan defaults.
+
+**3. “best” classification model and an analysis of its performance**
+
+The best classification model for predicting loan defaults is Model 1, which is a Logistic Regression model. This model has shown strong predictive performance with an Area Under the ROC Curve (AUC) of 0.9758. Now, let's discuss the expected error of this model on future data and its performance in a non-technical manner.
+
+**Understanding Model Performance:**
+The AUC is a measure of how well the model can distinguish between loans that will be repaid and those that will default. In simple terms, an AUC of 0.9758 means that the model is very good at separating good loans from potentially problematic ones. The higher the AUC, the better the model's ability to make accurate predictions.
+
+**Future Data Performance:**
+When we talk about estimating future performance, we can think of it as how well the model is likely to perform on loans that the bank hasn't seen yet. The AUC we've achieved on our test data gives us confidence that this model will continue to perform well on new loans.
+
+**Example Scenario:**
+Let's imagine you're an executive at a bank. You want to use this model to help make decisions about whether to approve or deny loan applications. Based on the model's AUC of 0.9758, you can be confident that it will be very effective in identifying risky loans. When a new loan application comes in, the model will assess it and provide a prediction. If the model predicts a high probability of default, you might decide to investigate further or deny the loan. If the model predicts a low probability of default, you can be more confident in approving the loan.
+
+**Managing Risk:**
+By using this model, the bank can make more informed decisions, reduce the risk of lending to customers who are likely to default, and, in turn, potentially save money. It's important to note that while the model is powerful, it's not infallible. There will always be some level of uncertainty, but with an AUC of 0.9758, that uncertainty is significantly reduced.
+
+
+
+In summary, Model 1, the Logistic Regression model, is a highly effective tool for assessing loan applications. It provides a reliable way to identify loans that may pose a risk to the bank, allowing for more informed decision-making and ultimately helping to manage and mitigate potential financial losses.
+
+
+
+**4. Recommendations to Reduce Loan Default Rates:**
+
+Certainly, here are recommendations to the company on how to reduce loan default rates, supported by data analysis results and their potential business impact:
+
+1. **Implement Risk-Based Loan Pricing:**
+ Data analysis revealed varying default rates by loan purpose. Loans for purposes like "credit_card" and "medical" have a higher likelihood of default.
+   - **Business Impact:** By implementing risk-based loan pricing, the company can charge higher interest rates on riskier loan purposes and lower rates on lower-risk purposes. This will align interest rates with default risk and potentially increase profitability while attracting safer borrowers.
+
+2. **Customized Credit Scoring Models:**
+  The data analysis showed that loan purpose, loan amount, and homeownership status influence default risk. For instance, "small_business" loans have higher default risk.
+   - **Business Impact:** Developing customized credit scoring models that consider these factors will lead to more accurate risk assessment. This can result in improved borrower selection, reduced default rates, and potentially lower losses for the business.
+
+3. **Offer Diverse Loan Term Options:**
+ The analysis revealed that loan term significantly affects default risk, with "five-year" loans having a higher risk of default.
+   - **Business Impact:** By offering a range of loan term options and adjusting interest rates accordingly, the company can attract borrowers who prefer shorter terms with lower default risk. This provides flexibility to borrowers and reduces the overall risk in the loan portfolio.
+
+4. **Risk Mitigation Strategies for High-Risk Loans:**
+ Data analysis identified higher default risk for certain loan purposes, such as "small_business."
+   - **Business Impact:** Implementing specific risk mitigation strategies for high-risk loans, such as requiring additional documentation, collateral, or co-signers, can reduce the likelihood of default. This minimizes potential losses for the business.
+
+5. **Targeted Marketing Based on Homeownership:**
+ The data analysis indicated a strong relationship between homeownership status and default risk.
+   - **Business Impact:** By tailoring marketing efforts to specific homeownership statuses, the company can attract lower-risk borrowers. This can lead to a more stable loan portfolio with reduced default rates and potential cost savings on risk management.
+
+6. **Continuous Monitoring and Adaptation:**
+ The analysis highlights that default risk factors can change over time.
+   - **Business Impact:** Regularly monitoring loan default trends and updating risk models and lending strategies will ensure the company remains agile in responding to evolving risks. This can lead to better risk management and lower default rates.
+
+7. **Customer Education on Risk Factors:**
+ The analysis demonstrates the impact of loan characteristics on default risk.
+   - **Business Impact:** Educating borrowers about how loan characteristics influence default risk can result in more informed financial decisions. Borrowers with better awareness may be less likely to default, reducing losses for the business.
+
+8. **Portfolio Diversification:**
+ The analysis suggests that different loan purposes have varying default rates.
+   - **Business Impact:** By diversifying the loan portfolio across various purposes and types, the company can spread risk more evenly. This can help mitigate the impact of fluctuations in default rates for specific loan categories and promote stability in the loan portfolio.
+.
+
+**5. Conclusion**
+
+In summary, our analysis of loan defaults revealed significant insights into the factors impacting default rates. Key findings indicate that loan purpose, loan amount, loan term, and homeownership status play vital roles in determining the likelihood of loan defaults. Our top-performing Logistic Regression model, with an impressive AUC of 0.9758, holds the promise of enhancing our risk assessment capabilities.
+
+To reduce loan default rates, we recommend tailoring lending policies to specific loan purposes, implementing a thorough loan amount assessment process, promoting shorter loan terms for high-risk borrowers, and adopting a risk-based approach for mortgages. These strategic recommendations aim to minimize risk, protect our financial stability, and strengthen our reputation.
+
+By incorporating these measures into our lending practices, we can make more informed decisions, reduce the likelihood of defaults, and ensure a robust and profitable loan portfolio. This approach aligns with our commitment to delivering responsible financial solutions to our customers while safeguarding the bank's long-term success.
+
+```{r}
+library(webshot)
+library(webshot2)
+```
+
